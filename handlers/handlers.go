@@ -140,7 +140,17 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
+	var registerResponse = struct {
+		Name  string
+		Email string
+	}{
+		Name:  user.Name,
+		Email: user.Email,
+	}
+
+	response := models.NewSuccessResponse("success registered", registerResponse)
+	helper.WriteToResponseBody(w, http.StatusCreated, &response)
+
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {

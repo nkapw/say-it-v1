@@ -8,5 +8,12 @@
       <jdbc-url>jdbc:postgresql://localhost:5432/say_it_db</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="sayit_db@34.128.106.183" uuid="b0a7286f-9250-4162-9194-c667927ed73b">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://34.128.106.183:5432/sayit_db</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

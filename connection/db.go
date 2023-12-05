@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	host     = "localhost"
+	host     = "34.128.106.183"
 	port     = 5432
 	user     = "postgres"
-	password = "elja"
-	dbname   = "say_it_db"
+	password = "opH?R+yntz8)n{#M"
+	dbname   = "sayit_db"
 )
 
 var db *sql.DB
