@@ -3,26 +3,23 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"say-it/connection"
+	"say-it/helper"
 	"say-it/models"
 	"strconv"
 	"strings"
 	"time"
 )
 
-//type ApiResponse struct {
-//	statusCode int
-//	message    string
-//	//data       models.User
-//}
-
 var db = connection.GetConnection()
 
 var secretKey = []byte("your_secret_key")
+var validate *validator.Validate = validator.New()
 
 func generateToken(userID int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
@@ -70,6 +67,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+
 			return
 		}
 
@@ -92,13 +90,20 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	var user models.User
 	err := json.NewDecoder(r.Body).Decode(&user)
+	err = validate.Struct(user)
+
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		//http.Error(w, err.Error(), http.StatusBadRequest)
+
+		response := models.NewErrorResponse("invalid request payload", "bad request")
+		helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
 		return
 	}
 
 	rows, err := db.Query("SELECT username, email FROM users WHERE username = $1 OR email = $2", user.Username, user.Email)
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -106,6 +111,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if rows.Next() {
 		err := rows.Scan(&username, &email)
 		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
 
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -113,28 +119,15 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if username == user.Username || email == user.Email {
-		http.Error(w, "email or username already exist", http.StatusBadRequest)
-		//response := map[string]string{"token": "message":"email or username already exist"}
-		w.WriteHeader(http.StatusBadRequest)
-
-		res := map[string]string{
-			"status":  "bad request",
-			"message": "email or username already exist",
-		}
-		json.NewEncoder(w).Encode(&res)
-
+		response := models.NewErrorResponse("email or username already exist", "bad request")
+		helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-
-		res := map[string]string{
-			"status": "internal server error",
-			//"message": "email or username already exist",
-		}
-		json.NewEncoder(w).Encode(&res)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	user.Password = string(hashedPassword)
@@ -143,13 +136,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		user.Name, user.Email, user.Password, user.Username)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("aaaaaaaaaaaaaa")
-
-		res := map[string]string{
-			"status": "internal server error",
-			//"message": "email or username already exist",
-		}
-		json.NewEncoder(w).Encode(&res)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -161,14 +148,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var loginReq models.User
 	err := json.NewDecoder(r.Body).Decode(&loginReq)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-
-		res := map[string]string{
-			"status": "bad request",
-			//"message": "email or username already exist",
-		}
-		json.NewEncoder(w).Encode(&res)
-
+		response := models.NewErrorResponse("invalid request payload", "bad request")
+		helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
 		return
 	}
 
@@ -176,26 +157,15 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow("SELECT id, name, email, password, username FROM users WHERE email=$1", loginReq.Email).
 		Scan(&dbUser.ID, &dbUser.Name, &dbUser.Email, &dbUser.Password, &dbUser.Username)
 	if err != nil {
-		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
-		w.WriteHeader(http.StatusUnauthorized)
-
-		res := map[string]string{
-			"status":  "unauthorize",
-			"message": "Invalid email or password",
-		}
-		json.NewEncoder(w).Encode(&res)
+		response := models.NewErrorResponse("Invalid email or password", "unauthorized")
+		helper.WriteToResponseBody(w, http.StatusUnauthorized, &response)
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(loginReq.Password))
 	if err != nil { //http.Error(w, "Invalid email or password", http.StatusUnauthorized)
-		w.WriteHeader(http.StatusUnauthorized)
-
-		res := map[string]string{
-			"status":  "unauthorize",
-			"message": "Invalid email or password",
-		}
-		json.NewEncoder(w).Encode(&res)
+		response := models.NewErrorResponse("Invalid email or password", "unauthorized")
+		helper.WriteToResponseBody(w, http.StatusUnauthorized, &response)
 		return
 	}
 
@@ -205,8 +175,11 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := map[string]string{"token": token}
-	json.NewEncoder(w).Encode(response)
+	//response := map[string]string{"token": token}
+	//json.NewEncoder(w).Encode(response)
+
+	response := models.NewSuccessResponse("ok", token)
+	helper.WriteToResponseBody(w, http.StatusOK, response)
 }
 
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -217,11 +190,14 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	err := db.QueryRow("SELECT id, name, email, password, username FROM users WHERE id=$1", userID).
 		Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.Username)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		//http.Error(w, err.Error(), 404)
+		response := models.NewErrorResponse("user not found", "not found")
+		helper.WriteToResponseBody(w, http.StatusNotFound, &response)
 		return
 	}
 
-	json.NewEncoder(w).Encode(user)
+	response := models.NewSuccessResponse("ok", user)
+	helper.WriteToResponseBody(w, http.StatusOK, response)
 }
 
 func EditUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -231,16 +207,18 @@ func EditUserHandler(w http.ResponseWriter, r *http.Request) {
 	var updatedUser models.User
 	err := json.NewDecoder(r.Body).Decode(&updatedUser)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		response := models.NewErrorResponse("invalid request payload", "bad request")
+		helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
 		return
 	}
 
-	_, err = db.Exec("UPDATE users SET name=$1, email=$2, password=$3, username=$4 WHERE id=$5",
-		updatedUser.Name, updatedUser.Email, updatedUser.Password, updatedUser.Username, userID)
+	_, err = db.Exec("UPDATE users SET username=$1 WHERE id=$2",
+		updatedUser.Username, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	response := models.NewSuccessResponse("ok", nil)
+	helper.WriteToResponseBody(w, http.StatusOK, response)
 }
