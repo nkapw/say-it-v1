@@ -56,8 +56,9 @@ func NewRouter() *mux.Router {
 
 	router.HandleFunc("/register", RegisterHandler).Methods("POST")
 	router.HandleFunc("/login", LoginHandler).Methods("POST")
-	router.Handle("/user/{id}", authMiddleware(http.HandlerFunc(GetUserHandler))).Methods("GET")
-	router.Handle("/user/{id}", authMiddleware(http.HandlerFunc(EditUserHandler))).Methods("PUT")
+	//router.Handle("/user/{id}", authMiddleware(http.HandlerFunc(GetUserHandler))).Methods("GET")
+	//router.Handle("/user/{id}", authMiddleware(http.HandlerFunc(EditUserHandler))).Methods("PUT")
+	router.Handle("/user/update", authMiddleware(http.HandlerFunc(UpdateCurrentUserHandler))).Methods("PUT")
 
 	return router
 }
@@ -231,4 +232,73 @@ func EditUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	response := models.NewSuccessResponse("ok", nil)
 	helper.WriteToResponseBody(w, http.StatusOK, response)
+}
+
+func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
+
+	// Mendapatkan ID pengguna dari token
+	userID, err := getUserIDFromToken(r)
+
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	// Mendapatkan data pengguna dari database
+	var currentUser models.User
+	err = db.QueryRow("SELECT id, name, email, password, username FROM users WHERE id=$1", userID).
+		Scan(&currentUser.ID, &currentUser.Name, &currentUser.Email, &currentUser.Password, &currentUser.Username)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Mendapatkan data yang diperbarui dari body request
+	var updatedUser models.User
+	err = json.NewDecoder(r.Body).Decode(&updatedUser)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Perbarui informasi pengguna saat ini
+	_, err = db.Exec("UPDATE users SET name=$1, email=$2, password=$3, username=$4 WHERE id=$5",
+		currentUser.Name, currentUser.Email, currentUser.Password, updatedUser.Username, userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// Fungsi helper untuk mendapatkan ID pengguna dari token
+func getUserIDFromToken(r *http.Request) (int, error) {
+	fmt.Println("errrrrrrrrrrrrrrrrrr")
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return 0, fmt.Errorf("missing Authorization header")
+	}
+
+	token := strings.Split(authHeader, " ")
+	if len(token) != 2 || token[0] != "Bearer" {
+		return 0, fmt.Errorf("invalid token format")
+	}
+
+	claims := jwt.StandardClaims{}
+	_, err := jwt.ParseWithClaims(token[1], &claims, func(token *jwt.Token) (interface{}, error) {
+		return secretKey, nil
+	})
+	if err != nil {
+		return 0, fmt.Errorf("invalid token")
+	}
+
+	userID, err := strconv.Atoi(claims.Subject)
+	if err != nil {
+		return 0, fmt.Errorf("invalid user ID in token")
+	}
+
+	return userID, nil
 }
