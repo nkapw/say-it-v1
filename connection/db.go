@@ -7,12 +7,21 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// const (
+//
+//	host     = "34.128.106.183"
+//	port     = 5432
+//	user     = "postgres"
+//	password = "opH?R+yntz8)n{#M"
+//	dbname   = "sayit_db"
+//
+// )
 const (
-	host     = "34.128.106.183"
+	host     = "localhost"
 	port     = 5432
 	user     = "postgres"
-	password = "opH?R+yntz8)n{#M"
-	dbname   = "sayit_db"
+	password = "elja"
+	dbname   = "say_it_db"
 )
 
 var db *sql.DB
