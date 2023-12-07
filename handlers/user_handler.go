@@ -74,8 +74,37 @@ func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 		// Dapatkan URL gambar GCS
 		imageURL := fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucketName, objectName)
 
-		currentUser.Username = r.FormValue("username")
+		//currentUser.Username = r.FormValue("username")
 		fmt.Println(currentUser.Username)
+		if currentUser.Username == r.FormValue("username") {
+			response := models.NewErrorResponse("Failed to update user ", "Bad request", "username must different from old")
+			helper.WriteToResponseBody(w, http.StatusUnauthorized, &response)
+			return
+		} else if currentUser.Username != r.FormValue("username") {
+			rows, err := db.Query("SELECT username FROM users")
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			var username string
+			if rows.Next() {
+				err := rows.Scan(&username)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+			}
+
+			if username == currentUser.Username {
+				response := models.NewErrorResponse("Update failed", "Bad Request", "Username is already use")
+				helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
+				return
+			}
+		}
 
 		// Simpan URL gambar di database
 		_, err = db.Exec("UPDATE users SET username = $1, profile_picture=$2 WHERE id=$3", currentUser.Username, imageURL, userID)
