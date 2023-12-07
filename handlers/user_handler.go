@@ -14,7 +14,8 @@ func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Mendapatkan ID pengguna dari token
 	userID, err := helper.GetUserIDFromToken(r)
 	if err != nil {
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		response := models.NewErrorResponse("Failed to update user ", "Unauthorized", "Invalid Token")
+		helper.WriteToResponseBody(w, http.StatusUnauthorized, &response)
 		return
 	}
 
@@ -93,19 +94,20 @@ func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := helper.GetUserIDFromToken(r)
 	if err != nil {
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		response := models.NewErrorResponse("Failed to update user ", "Unauthorized", "Invalid Token")
+		helper.WriteToResponseBody(w, http.StatusUnauthorized, &response)
 		return
 	}
 
 	var user models.User
-	err = db.QueryRow("SELECT id, email, password, username, profile_picture FROM users WHERE id=$1", userID).
-		Scan(&user.ID, &user.Email, &user.Password, &user.Username)
+	err = db.QueryRow("SELECT id, email, username, profile_picture FROM users WHERE id=$1", userID).
+		Scan(&user.ID, &user.Email, &user.Username, &user.ProfilePicture)
 	if err != nil {
-		response := models.NewErrorResponse("user not found", "not found")
+		response := models.NewErrorResponse("error", "not found", "Failed to retrieve user information: "+err.Error())
 		helper.WriteToResponseBody(w, http.StatusNotFound, &response)
 		return
 	}
 
-	response := models.NewSuccessResponse("ok", user)
+	response := models.NewSuccessResponse("User information retrieved successfully", user)
 	helper.WriteToResponseBody(w, http.StatusOK, response)
 }

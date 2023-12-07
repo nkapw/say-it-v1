@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"say-it/helper"
 	"say-it/models"
+	"strconv"
 )
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
@@ -13,11 +14,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	err := json.NewDecoder(r.Body).Decode(&user)
 	err = helper.Validate.Struct(user)
-
 	if err != nil {
-		//http.Error(w, err.Error(), http.StatusBadRequest)
-
-		response := models.NewErrorResponse("invalid request payload", "bad request")
+		response := models.NewErrorResponse("Invalid Request Payload", "bad request", err.Error())
 		helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
 		return
 	}
@@ -41,7 +39,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if username == user.Username || email == user.Email {
-		response := models.NewErrorResponse("email or username already exist", "bad request")
+		response := models.NewErrorResponse("Registration failed", "Bad Request", "Username or Email is already use")
 		helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
 		return
 	}
@@ -62,15 +60,12 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var registerResponse = struct {
-		Username string
-		Email    string
-	}{
+	registerResponse := models.RegisterResponse{
 		Username: user.Username,
 		Email:    user.Email,
 	}
 
-	response := models.NewSuccessResponse("success registered", registerResponse)
+	response := models.NewSuccessResponse("Registration successful", registerResponse)
 	helper.WriteToResponseBody(w, http.StatusCreated, &response)
 
 }
@@ -80,7 +75,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var loginReq models.User
 	err := json.NewDecoder(r.Body).Decode(&loginReq)
 	if err != nil {
-		response := models.NewErrorResponse("invalid request payload", "bad request")
+		response := models.NewErrorResponse("Invalid Request Payload", "Bad Request", err.Error())
 		helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
 		return
 	}
@@ -89,14 +84,14 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow("SELECT id, email, password, username FROM users WHERE email=$1", loginReq.Email).
 		Scan(&dbUser.ID, &dbUser.Email, &dbUser.Password, &dbUser.Username)
 	if err != nil {
-		response := models.NewErrorResponse("Invalid email or password", "unauthorized")
+		response := models.NewErrorResponse("Login Failed", "Unauthorized", "Invalid Email")
 		helper.WriteToResponseBody(w, http.StatusUnauthorized, &response)
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(loginReq.Password))
 	if err != nil { //http.Error(w, "Invalid email or password", http.StatusUnauthorized)
-		response := models.NewErrorResponse("Invalid email or password", "unauthorized")
+		response := models.NewErrorResponse("Login Failed", "Unauthorized", "Invalid Password")
 		helper.WriteToResponseBody(w, http.StatusUnauthorized, &response)
 		return
 	}
@@ -107,9 +102,13 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//response := map[string]string{"token": token}
-	//json.NewEncoder(w).Encode(response)
+	loginResponse := models.LoginResponse{
+		Id:       strconv.Itoa(dbUser.ID),
+		Username: dbUser.Username,
+		Email:    dbUser.Email,
+		Token:    token,
+	}
 
-	response := models.NewSuccessResponse("ok", token)
+	response := models.NewSuccessResponse("Login successful", loginResponse)
 	helper.WriteToResponseBody(w, http.StatusOK, response)
 }
