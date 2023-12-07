@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -10,8 +9,8 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
-	"google.golang.org/api/option"
 	"io"
+	"log"
 	"net/http"
 	"say-it/connection"
 	"say-it/helper"
@@ -308,14 +307,6 @@ func getUserIDFromToken(r *http.Request) (int, error) {
 }
 
 // handlers/handlers.go
-func createGCSClient() (*storage.Client, error) {
-	ctx := context.Background()
-	client, err := storage.NewClient(ctx, option.WithCredentialsFile("./credentials.json"))
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
-}
 
 // handlers/handlers.go
 func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -336,6 +327,7 @@ func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 	err = db.QueryRow("SELECT id, name, email, password, username, profile_picture FROM users WHERE id=$1", userID).
 		Scan(&currentUser.ID, &currentUser.Name, &currentUser.Email, &currentUser.Password, &currentUser.Username, &currentUserPfp)
 	if err != nil {
+		log.Fatal("hello QueryRow")
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -343,6 +335,7 @@ func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Mendapatkan data yang diperbarui dari formulir multipart
 	err = r.ParseMultipartForm(10 << 20) // 10 MB max file size
 	if err != nil {
+		log.Fatal("hello ParseMultipartForm")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -354,7 +347,7 @@ func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 
 		// Inisialisasi klien GCS
-		gcsClient, err := createGCSClient()
+		gcsClient, err := helper.CreateGCSClient()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -390,30 +383,34 @@ func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Update informasi pengguna
 		currentUser.ProfilePicture = imageURL
+		response := models.NewSuccessResponse("User information updated successfully", currentUser)
+		helper.WriteToResponseBody(w, http.StatusOK, response)
 	}
-
-	// Mendapatkan data pengguna yang diperbarui dari body request
-	var updatedUser models.User
-	err = json.NewDecoder(r.Body).Decode(&updatedUser)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Perbarui informasi pengguna saat ini
-	_, err = db.Exec("UPDATE users SET name=$1, email=$2, password=$3, username=$4 WHERE id=$5",
-		updatedUser.Name, updatedUser.Email, updatedUser.Password, updatedUser.Username, userID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Update informasi pengguna di respons
-	currentUser.Name = updatedUser.Name
-	currentUser.Email = updatedUser.Email
-	currentUser.Username = updatedUser.Username
-
-	// Kirim respons JSON
-	response := models.NewSuccessResponse("User information updated successfully", currentUser)
-	helper.WriteToResponseBody(w, http.StatusOK, response)
+	//
+	//// Mendapatkan data pengguna yang diperbarui dari body request
+	//var updatedUser models.User
+	//err = json.NewDecoder(r.Body).Decode(&updatedUser)
+	//if err != nil {
+	//	//log.Fatal(err.Error())
+	//	http.Error(w, err.Error(), http.StatusBadRequest)
+	//	return
+	//}
+	//
+	//// Perbarui informasi pengguna saat ini
+	//_, err = db.Exec("UPDATE users SET name=$1, email=$2, password=$3, username=$4 WHERE id=$5",
+	//	updatedUser.Name, updatedUser.Email, updatedUser.Password, updatedUser.Username, userID)
+	//if err != nil {
+	//	http.Error(w, err.Error(), http.StatusInternalServerError)
+	//	return
+	//}
+	//
+	//// Update informasi pengguna di respons
+	//currentUser.Name = updatedUser.Name
+	//currentUser.Email = updatedUser.Email
+	//currentUser.Username = updatedUser.Username
+	//log.Fatal("selesai")
+	//
+	//// Kirim respons JSON
+	//response := models.NewSuccessResponse("User information updated successfully", currentUser)
+	//helper.WriteToResponseBody(w, http.StatusOK, response)
 }
