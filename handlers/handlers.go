@@ -1,12 +1,17 @@
 package handlers
 
 import (
+	"cloud.google.com/go/storage"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/api/option"
+	"io"
 	"net/http"
 	"say-it/connection"
 	"say-it/helper"
@@ -234,48 +239,47 @@ func EditUserHandler(w http.ResponseWriter, r *http.Request) {
 	helper.WriteToResponseBody(w, http.StatusOK, response)
 }
 
-func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
-
-	// Mendapatkan ID pengguna dari token
-	userID, err := getUserIDFromToken(r)
-
-	if err != nil {
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
-		return
-	}
-
-	// Mendapatkan data pengguna dari database
-	var currentUser models.User
-	err = db.QueryRow("SELECT id, name, email, password, username FROM users WHERE id=$1", userID).
-		Scan(&currentUser.ID, &currentUser.Name, &currentUser.Email, &currentUser.Password, &currentUser.Username)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	// Mendapatkan data yang diperbarui dari body request
-	var updatedUser models.User
-	err = json.NewDecoder(r.Body).Decode(&updatedUser)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Perbarui informasi pengguna saat ini
-	_, err = db.Exec("UPDATE users SET name=$1, email=$2, password=$3, username=$4 WHERE id=$5",
-		currentUser.Name, currentUser.Email, currentUser.Password, updatedUser.Username, userID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
+//func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
+//
+//	// Mendapatkan ID pengguna dari token
+//	userID, err := getUserIDFromToken(r)
+//
+//	if err != nil {
+//		http.Error(w, "Invalid token", http.StatusUnauthorized)
+//		return
+//	}
+//
+//	// Mendapatkan data pengguna dari database
+//	var currentUser models.User
+//	err = db.QueryRow("SELECT id, name, email, password, username FROM users WHERE id=$1", userID).
+//		Scan(&currentUser.ID, &currentUser.Name, &currentUser.Email, &currentUser.Password, &currentUser.Username)
+//	if err != nil {
+//		http.Error(w, err.Error(), http.StatusNotFound)
+//		return
+//	}
+//
+//	// Mendapatkan data yang diperbarui dari body request
+//	var updatedUser models.User
+//	err = json.NewDecoder(r.Body).Decode(&updatedUser)
+//
+//	if err != nil {
+//		http.Error(w, err.Error(), http.StatusBadRequest)
+//		return
+//	}
+//
+//	// Perbarui informasi pengguna saat ini
+//	_, err = db.Exec("UPDATE users SET name=$1, email=$2, password=$3, username=$4 WHERE id=$5",
+//		currentUser.Name, currentUser.Email, currentUser.Password, updatedUser.Username, userID)
+//	if err != nil {
+//		http.Error(w, err.Error(), http.StatusInternalServerError)
+//		return
+//	}
+//
+//	w.WriteHeader(http.StatusOK)
+//}
 
 // Fungsi helper untuk mendapatkan ID pengguna dari token
 func getUserIDFromToken(r *http.Request) (int, error) {
-	fmt.Println("errrrrrrrrrrrrrrrrrr")
 
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
@@ -301,4 +305,115 @@ func getUserIDFromToken(r *http.Request) (int, error) {
 	}
 
 	return userID, nil
+}
+
+// handlers/handlers.go
+func createGCSClient() (*storage.Client, error) {
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx, option.WithCredentialsFile("./credentials.json"))
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+// handlers/handlers.go
+func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
+	// Mendapatkan ID pengguna dari token
+	userID, err := getUserIDFromToken(r)
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	// Mendapatkan data pengguna dari database
+	var currentUser models.User
+	var currentUserPfp sql.NullString
+
+	if currentUserPfp.Valid {
+		currentUser.ProfilePicture = currentUserPfp.String
+	}
+	err = db.QueryRow("SELECT id, name, email, password, username, profile_picture FROM users WHERE id=$1", userID).
+		Scan(&currentUser.ID, &currentUser.Name, &currentUser.Email, &currentUser.Password, &currentUser.Username, &currentUserPfp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Mendapatkan data yang diperbarui dari formulir multipart
+	err = r.ParseMultipartForm(10 << 20) // 10 MB max file size
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Mengambil file gambar dari formulir
+	file, header, err := r.FormFile("profile_picture")
+	if err == nil {
+		// Jika ada file gambar, simpan di Google Cloud Storage
+		defer file.Close()
+
+		// Inisialisasi klien GCS
+		gcsClient, err := createGCSClient()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer gcsClient.Close()
+
+		// Simpan gambar di GCS
+		bucketName := "profile_picture_bucket"
+		objectName := fmt.Sprintf("profile_%d_%s", userID, header.Filename)
+
+		ctx := context.Background()
+		wc := gcsClient.Bucket(bucketName).Object(objectName).NewWriter(ctx)
+		_, err = io.Copy(wc, file)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if err := wc.Close(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Dapatkan URL gambar GCS
+		imageURL := fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucketName, objectName)
+
+		// Simpan URL gambar di database
+		_, err = db.Exec("UPDATE users SET profile_picture=$1 WHERE id=$2", imageURL, userID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Update informasi pengguna
+		currentUser.ProfilePicture = imageURL
+	}
+
+	// Mendapatkan data pengguna yang diperbarui dari body request
+	var updatedUser models.User
+	err = json.NewDecoder(r.Body).Decode(&updatedUser)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Perbarui informasi pengguna saat ini
+	_, err = db.Exec("UPDATE users SET name=$1, email=$2, password=$3, username=$4 WHERE id=$5",
+		updatedUser.Name, updatedUser.Email, updatedUser.Password, updatedUser.Username, userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Update informasi pengguna di respons
+	currentUser.Name = updatedUser.Name
+	currentUser.Email = updatedUser.Email
+	currentUser.Username = updatedUser.Username
+
+	// Kirim respons JSON
+	response := models.NewSuccessResponse("User information updated successfully", currentUser)
+	helper.WriteToResponseBody(w, http.StatusOK, response)
 }
