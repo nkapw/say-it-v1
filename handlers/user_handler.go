@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"say-it/helper"
 	"say-it/models"
+	"strconv"
 )
 
 func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -141,6 +142,13 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := models.NewSuccessResponse("User information retrieved successfully", user)
+	userResponse := models.UserResponse{
+		Id:             strconv.Itoa(user.ID),
+		Username:       user.Username,
+		Email:          user.Email,
+		ProfilePicture: user.ProfilePicture,
+	}
+
+	response := models.NewSuccessResponse("User information retrieved successfully", userResponse)
 	helper.WriteToResponseBody(w, http.StatusOK, response)
 }

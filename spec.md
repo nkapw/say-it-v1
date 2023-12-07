@@ -10,8 +10,7 @@ Request Body :
 {
   "username" : "imam",
   "email": "imam@example.com",  
-  "password" : "rahasia",
-  "name" : "Imam Ahmad Fahrezi"
+  "password" : "rahasia" //min 8 char
 }
 ```
 
@@ -19,11 +18,12 @@ Response Body Success :
 
 ```json
 {
-  "status": "201",
-  "message": "success registered",
-  "data" : {
-    "email": "imam@example.com",
-    "name" : "Imam Ahmad Fahrezi"
+  "status": "success",
+  "message": "Registration successful",
+  "data": {
+    "id": "12345",
+    "username": "imam",
+    "email": "imam@example.com"
   }
 }
 ```
@@ -32,9 +32,11 @@ Response Body Error :
 
 ```json
 {
-  "status": "",
-  "message": "email or username already exist"
+  "status": "error",
+  "message": "Registration failed",
+  "error_details": "Email or Username address is already in use"
 }
+
 ```
 
 ## Login User API
@@ -45,8 +47,8 @@ Request Body :
 
 ```json
 {
-"email" : "imam@example.com",
-"password" : "rahasia"
+    "email" : "imam@example.com",
+    "password" : "rahasia"
 }
 ```
 
@@ -55,18 +57,26 @@ data tersebut maksudnya token
 ```json
 {
   "status": "success",
-  "message": "ok",
-  "data": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDE3NTA4MjQsImlhdCI6MTcwMTc0NzIyNCwic3ViIjoiMyJ9.Mkv8F2gFXUVsbolhc_H2jRJGwXuIb7RmNOW8q3TTUcE"
+  "message": "Login successful",
+  "data": {
+    "id": "12345",
+    "username": "imam",
+    "email" : "imam@example.com",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiAiMTIzNDUiLCAiaWF0IjogMTYyMzEyMzUwMH0.H6MQUMR1Jvh7zxP3kW6VXWd7OlvGp7sFcpj2ZDqkNKk"
+  }
 }
+
 ```
 
 Response Body Error :
 
 ```json
 {
-  "status": "unauthorized",
-  "message": "Invalid email or password"
+  "status": "error",
+  "message": "Login failed",
+  "error_details": "Invalid username or Invalid password"
 }
+
 ```
 
 ## Update User API
@@ -75,12 +85,15 @@ Endpoint : PATCH /api/users/current
 
 Headers :
 - Authorization : token
+- Content-Type : form-data
 
 Request Body :
 
 ```json
+
 {
-"username" : "imamnew"
+  "profile-picture":"file.img",
+  "username" : "updated_username"
 }
 ```
 
@@ -88,19 +101,26 @@ Response Body Success :
 
 ```json
 {
-"data" : {
-"username" : "imam",
-"name" : "Imam Ahmad Fahrezi new"
+  "status": "success",
+  "message": "User information updated successfully",
+  "data": {
+    "id": "12345",
+    "username": "updated_username",
+    "profile-picture":"file.img"
+  }
 }
-}
+
 ```
 
 Response Body Error :
 
 ```json
 {
-"errors" : "Name length max 100"
+  "status": "error",
+  "message": "Failed to update user information",
+  "error_details": ""
 }
+
 ```
 
 ## Get User API
@@ -114,19 +134,33 @@ Response Body Success:
 
 ```json
 {
-"data" : {
-"username" : "imam",
-"name" : "Imam Ahmad Fahrezi"
+  "status": "success",
+  "message": "User information retrieved successfully",
+  "data": {
+    "user_id": "12345",
+    "username": "john_doe",
+    "email": "john.doe@example.com"
+    // additional user information
+  }
 }
-}
+
 ```
 
 Response Body Error :
 
 ```json
 {
-"errors" : "Unauthorized"
+  "status": "error",
+  "message": "Failed to retrieve user information",
+  "error_details": [
+    {
+      "code": "UNAUTHORIZED",
+      "message": "Invalid or expired token"
+    }
+    // additional error details if needed
+  ]
 }
+
 ```
 
 ## Logout User API

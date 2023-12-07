@@ -41,3 +41,10 @@ type LoginResponse struct {
 	Email    string
 	Token    string
 }
+
+type UserResponse struct {
+	Id             string
+	Username       string
+	Email          string
+	ProfilePicture string
+}
