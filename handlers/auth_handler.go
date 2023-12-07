@@ -54,8 +54,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	user.Password = string(hashedPassword)
 
-	_, err = db.Exec("INSERT INTO users (name, email, password, username) VALUES ($1, $2, $3, $4)",
-		user.Name, user.Email, user.Password, user.Username)
+	_, err = db.Exec("INSERT INTO users ( email, password, username) VALUES ($1, $2, $3)",
+		user.Email, user.Password, user.Username)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -63,11 +63,11 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var registerResponse = struct {
-		Name  string
-		Email string
+		Username string
+		Email    string
 	}{
-		Name:  user.Name,
-		Email: user.Email,
+		Username: user.Username,
+		Email:    user.Email,
 	}
 
 	response := models.NewSuccessResponse("success registered", registerResponse)
@@ -86,8 +86,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var dbUser models.User
-	err = db.QueryRow("SELECT id, name, email, password, username FROM users WHERE email=$1", loginReq.Email).
-		Scan(&dbUser.ID, &dbUser.Name, &dbUser.Email, &dbUser.Password, &dbUser.Username)
+	err = db.QueryRow("SELECT id, email, password, username FROM users WHERE email=$1", loginReq.Email).
+		Scan(&dbUser.ID, &dbUser.Email, &dbUser.Password, &dbUser.Username)
 	if err != nil {
 		response := models.NewErrorResponse("Invalid email or password", "unauthorized")
 		helper.WriteToResponseBody(w, http.StatusUnauthorized, &response)

@@ -25,8 +25,8 @@ func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 	if currentUserPfp.Valid {
 		currentUser.ProfilePicture = currentUserPfp.String
 	}
-	err = db.QueryRow("SELECT id, name, email, password, username, profile_picture FROM users WHERE id=$1", userID).
-		Scan(&currentUser.ID, &currentUser.Name, &currentUser.Email, &currentUser.Password, &currentUser.Username, &currentUserPfp)
+	err = db.QueryRow("SELECT id, email, password, username, profile_picture FROM users WHERE id=$1", userID).
+		Scan(&currentUser.ID, &currentUser.Email, &currentUser.Password, &currentUser.Username, &currentUserPfp)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -73,8 +73,11 @@ func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 		// Dapatkan URL gambar GCS
 		imageURL := fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucketName, objectName)
 
+		currentUser.Username = r.FormValue("username")
+		fmt.Println(currentUser.Username)
+
 		// Simpan URL gambar di database
-		_, err = db.Exec("UPDATE users SET profile_picture=$1 WHERE id=$2", imageURL, userID)
+		_, err = db.Exec("UPDATE users SET username = $1, profile_picture=$2 WHERE id=$3", currentUser.Username, imageURL, userID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -95,8 +98,8 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var user models.User
-	err = db.QueryRow("SELECT id, name, email, password, username, profile_picture FROM users WHERE id=$1", userID).
-		Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.Username)
+	err = db.QueryRow("SELECT id, email, password, username, profile_picture FROM users WHERE id=$1", userID).
+		Scan(&user.ID, &user.Email, &user.Password, &user.Username)
 	if err != nil {
 		response := models.NewErrorResponse("user not found", "not found")
 		helper.WriteToResponseBody(w, http.StatusNotFound, &response)
