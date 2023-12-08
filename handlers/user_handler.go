@@ -92,7 +92,7 @@ func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Simpan gambar di GCS
-		bucketName := "profile_picture_bucket"
+		bucketName := "say-it-bucket"
 		objectName := fmt.Sprintf("profile_%d_%s", userID, header.Filename)
 
 		ctx := context.Background()
