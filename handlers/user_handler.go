@@ -63,7 +63,7 @@ func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			if currentUser.Username != r.FormValue("username") {
 
-				rows, err := db.Query("SELECT username FROM users")
+				rows, err := db.Query("SELECT username FROM users where username = $1", r.FormValue("username"))
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
 
@@ -134,8 +134,13 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var user models.User
+	var userNull sql.NullString
+
+	if userNull.Valid {
+		user.ProfilePicture = userNull.String
+	}
 	err = db.QueryRow("SELECT id, email, username, profile_picture FROM users WHERE id=$1", userID).
-		Scan(&user.ID, &user.Email, &user.Username, &user.ProfilePicture)
+		Scan(&user.ID, &user.Email, &user.Username, &userNull)
 	if err != nil {
 		response := models.NewErrorResponse("error", "not found", "Failed to retrieve user information: "+err.Error())
 		helper.WriteToResponseBody(w, http.StatusNotFound, &response)
