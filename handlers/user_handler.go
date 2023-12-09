@@ -122,7 +122,55 @@ func UpdateCurrentUserHandler(w http.ResponseWriter, r *http.Request) {
 		currentUser.ProfilePicture = imageURL
 		response := models.NewSuccessResponse("User information updated successfully", currentUser)
 		helper.WriteToResponseBody(w, http.StatusOK, response)
+	} else {
+		if r.FormValue("username") != "" {
+			if currentUser.Username == r.FormValue("username") {
+				response := models.NewErrorResponse("Failed to update user ", "Bad request", "username must different from old")
+				helper.WriteToResponseBody(w, http.StatusUnauthorized, &response)
+				return
+			}
+			if currentUser.Username != r.FormValue("username") {
+
+				rows, err := db.Query("SELECT username FROM users where username = $1", r.FormValue("username"))
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				var username string
+				if rows.Next() {
+					err := rows.Scan(&username)
+					if err != nil {
+						w.WriteHeader(http.StatusInternalServerError)
+
+						http.Error(w, err.Error(), http.StatusInternalServerError)
+						return
+					}
+
+				}
+				if username == r.FormValue("username") {
+					response := models.NewErrorResponse("Failed to update user", "Bad Request", "Username is already use")
+					helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
+					return
+				}
+				currentUser.Username = r.FormValue("username")
+
+			}
+		}
+
+		// Simpan URL gambar di database
+		_, err = db.Exec("UPDATE users SET username = $1 WHERE id=$2", currentUser.Username, userID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Update informasi pengguna
+		response := models.NewSuccessResponse("User information updated successfully", currentUser)
+		helper.WriteToResponseBody(w, http.StatusOK, response)
 	}
+
 }
 
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
