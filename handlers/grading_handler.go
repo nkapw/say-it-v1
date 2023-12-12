@@ -36,7 +36,7 @@ var db = connection.GetConnection()
 
 func GradingHandler(w http.ResponseWriter, r *http.request) {
 	// Mendapatkan Word ID dari URL endpoint
-	wordID = r.URL.Query()
+	wordID = mux.Vars(r)["WordID"]
 
 	// Mendapatkan ID pengguna dari token
 	userID, err := helper.GetUserIDFromToken(r)
@@ -72,8 +72,8 @@ func GradingHandler(w http.ResponseWriter, r *http.request) {
 	defer gcsClient.Close()	
 
 	// simpan file di gcs
-	bucketName = "say_it_bucket/grading"
-	objectName = fmt.Sprintf("%d_%s", userID, header.Filename)
+	bucketName = "say-it-grading-bucket"
+	objectName = fmt.Sprintf("grading_%d_%s", userID, header.Filename)
 
 	ctx := context.Background()
 	wc := gcsClient.Bucket(bucketName).Object(objectName).NewWriter(ctx)
