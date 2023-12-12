@@ -38,6 +38,7 @@ func NewRouter() *mux.Router {
 	router.Handle("/user", authMiddleware(http.HandlerFunc(GetUserHandler))).Methods("GET")
 	//router.Handle("/user/{id}", authMiddleware(http.HandlerFunc(EditUserHandler))).Methods("PUT")
 	router.Handle("/user/update", authMiddleware(http.HandlerFunc(UpdateCurrentUserHandler))).Methods("PUT")
+	router.handleFunc("/words/{WordID}")
 
 	return router
 }
