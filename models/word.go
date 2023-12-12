@@ -11,7 +11,7 @@ type Word struct {
 
 
   type WordDetail struct {
-	ID          int    `json:"id"`
-	WordID      int    `json:"word_id"`
-	Description string `json:"description"`
+	WordID      int    	`json:"id"`
+	WordTxt     string	`json:"word"`
+	Description string 	`json:"description"`
 }
