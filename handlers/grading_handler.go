@@ -36,7 +36,7 @@ var db = connection.GetConnection()
 
 func GradingHandler(w http.ResponseWriter, r *http.request) {
 	// Mendapatkan Word ID dari URL endpoint
-	wordID = mux.Vars(r)["WordID"]
+	wordID := mux.Vars(r)["WordID"]
 
 	// Mendapatkan ID pengguna dari token
 	userID, err := helper.GetUserIDFromToken(r)
