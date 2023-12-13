@@ -13,7 +13,31 @@ import (
 )
 
 func GetAllWordsHandler(w http.ResponseWriter, r *http.Request) {
-  
+	rows, err := db.Query("SELECT id, word FROM words;")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	defer rows.Close()
+
+	var words []Word
+	for rows.Next() {
+		err := rows.Scan(&id, &word)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		words = append(words, Word{ID: id, WordTXT: word})
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	response := models.NewSuccessResponse("OK", words)
+	helper.WriteToResponseBody(w, http.StatusOK, response)
 }
 
 func GetWordDetailHandler(w http.ResponseWriter, r *http.Request) {
