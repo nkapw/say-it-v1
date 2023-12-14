@@ -17,7 +17,7 @@ This is an application to grade the user's prononciation of a word. The app has 
 
 ## Register User API
 
-Endpoint :  POST http://34.101.246.52:8080/register
+Endpoint :  POST https://say-it-capstone-project.et.r.appspot.com/register
 
 Request Body :
 
@@ -56,7 +56,7 @@ Response Body Error :
 
 ## Login User API
 
-Endpoint : POST http://34.101.246.52:8080/register
+Endpoint : POST https://say-it-capstone-project.et.r.appspot.com/register
 
 Request Body :
 
