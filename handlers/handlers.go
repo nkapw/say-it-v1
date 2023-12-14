@@ -33,6 +33,7 @@ func NewRouter() *mux.Router {
 
 	authMiddleware := middleware.AuthMiddleware
 
+	router.HandleFunc("/words", GetAllWordsHandler).Methods("GET")
 	router.HandleFunc("/words/{WordID}", GetWordDetailHandler).Methods("GET")
 	router.HandleFunc("/register", RegisterHandler).Methods("POST")
 	router.HandleFunc("/login", LoginHandler).Methods("POST")
