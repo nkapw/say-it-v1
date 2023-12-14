@@ -22,7 +22,7 @@ func GetAllWordsHandler(w http.ResponseWriter, r *http.Request) {
 
 	var words []Word
 	for rows.Next() {
-		err := rows.Scan(&id, &word)
+		err != rows.Scan(&id, &word)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -50,7 +50,7 @@ func GetWordDetailHandler(w http.ResponseWriter, r *http.Request) {
 	// Sound link nanti lagi karena untuk sekarang sumber data suara belum ada
 	err = db.QueryRow("SELECT id, word, detail FROM words WHERE id=$1", wordID).
 		Scan(&wordID, &wordTXT, &wordDetail)
-	if err := nil {
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
