@@ -1,14 +1,10 @@
 package handlers
 
 import (
-	"context"
-	"database/sql"
-	"fmt"
-	"io"
 	"net/http"
-	"say-it/connection"
 	"say-it/helper"
 	"say-it/models"
+	"github.com/gorilla/mux"
 	"strconv"
 )
 
@@ -20,15 +16,17 @@ func GetAllWordsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var words []Word
+	var words []models.Word
 	for rows.Next() {
-		err != rows.Scan(&id, &word)
+		var id int
+		var word string
+		err := rows.Scan(&id, &word)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
 
-		words = append(words, Word{ID: id, WordTXT: word})
+		words = append(words, models.Word{ID: id, WordTxt: word})
 	}
 
 	if err := rows.Err(); err != nil {
@@ -42,13 +40,20 @@ func GetAllWordsHandler(w http.ResponseWriter, r *http.Request) {
 
 func GetWordDetailHandler(w http.ResponseWriter, r *http.Request) {
 	// Mendapatkan Word ID dari URL  Endpoint
-	wordID := mux.Vars(r)["WordID"]
+	ParamID := mux.Vars(r)["WordID"]
 	var wordTXT string
 	var wordDetail string
 
+	wordID, err := strconv.Atoi(ParamID)
+	if err != nil {
+		response := models.NewErrorResponse("Failed to get word detail", "The ID provided is invalid", "Invalid ID")
+		helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
+		return
+	}
+
 	// Cari Word ID di DB
 	// Sound link nanti lagi karena untuk sekarang sumber data suara belum ada
-	err = db.QueryRow("SELECT id, word, detail FROM words WHERE id=$1", wordID).
+	err = db.QueryRow("SELECT id, word, description FROM words WHERE id=$1", wordID).
 		Scan(&wordID, &wordTXT, &wordDetail)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -58,7 +63,7 @@ func GetWordDetailHandler(w http.ResponseWriter, r *http.Request) {
 	var wordResponse models.WordDetail
 
 	wordResponse.WordID = wordID
-	wordResponse.WordTXT = wordTXT
+	wordResponse.WordTxt = wordTXT
 	wordResponse.Description = wordDetail
 
 	response := models.NewSuccessResponse("OK", wordResponse)
