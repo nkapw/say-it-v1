@@ -19,22 +19,16 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
+	"context"
 	"github.com/gorilla/mux"
 	"net/http"
-	"say-it/connection"
 	"say-it/helper"
 	"say-it/models"
-	"strconv"
-	"strings"
-
-	"cloud.google.com/go/storage"
+	"io"
 )
 
-var db = connection.GetConnection()
-
-func GradingHandler(w http.ResponseWriter, r *http.request) {
+func GradingHandler(w http.ResponseWriter, r *http.Request) {
 	// Mendapatkan Word ID dari URL endpoint
 	wordID := mux.Vars(r)["WordID"]
 
@@ -61,7 +55,7 @@ func GradingHandler(w http.ResponseWriter, r *http.request) {
 	}
 
 	// Persiapkan Google Cloud Storage
-	defer file.close()
+	defer file.Close()
 
 	// Inisialisasi client GCS
 	gcsClient, err := helper.CreateGCSClient()
@@ -72,8 +66,8 @@ func GradingHandler(w http.ResponseWriter, r *http.request) {
 	defer gcsClient.Close()	
 
 	// simpan file di gcs
-	bucketName = "say-it-grading-bucket"
-	objectName = fmt.Sprintf("grading_%d_%s", userID, header.Filename)
+	bucketName := "say-it-grading-bucket"
+	objectName := fmt.Sprintf("grading_%d_%s", userID, header.Filename)
 
 	ctx := context.Background()
 	wc := gcsClient.Bucket(bucketName).Object(objectName).NewWriter(ctx)

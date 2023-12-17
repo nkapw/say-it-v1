@@ -1,11 +1,9 @@
-package models
-
 // models/word.go
 package models
 
 type Word struct {
 	ID    int    `json:"id"`
-	WordTxt  string `json:"word_txt"`
+	WordTxt  string `json:"word"`
 }
 
 
