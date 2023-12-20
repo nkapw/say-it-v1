@@ -33,9 +33,9 @@ func NewRouter() *mux.Router {
 
 	authMiddleware := middleware.AuthMiddleware
 
-	router.Handle("/words", authMiddleware(http.HandlerFunc(GetAllWordsHandler))).Methods("GET")
+	router.Handle("/words", authMiddleware(http.HandlerFunc(GetAllWordsHandler))).Methods("GET").Queries("page", "{page}")
 	router.Handle("/words/{WordID}", authMiddleware(http.HandlerFunc(GetWordDetailHandler))).Methods("GET")
-	// router.HandleFunc("/words", GetAllWordsHandler).Methods("GET") // for testing in postman
+	// router.HandleFunc("/words", GetAllWordsHandler).Methods("GET").Queries("page", "{page}") // for testing in postman
 	// router.HandleFunc("/words/{WordID}", GetWordDetailHandler).Methods("GET") //for testing in postman
 	router.HandleFunc("/register", RegisterHandler).Methods("POST")
 	router.HandleFunc("/login", LoginHandler).Methods("POST")

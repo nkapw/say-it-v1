@@ -9,7 +9,18 @@ import (
 )
 
 func GetAllWordsHandler(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query("SELECT id, word FROM words;")
+	param := mux.Vars(r)["page"]
+	pageNum, err := strconv.Atoi(param)
+	if err != nil {
+		response := models.NewErrorResponse("Failed to get words list", "The parameter provided is invalid", "Invalid parameter")
+		helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
+		return
+	}
+
+	minID := 1 + (pageNum - 1) * 16
+	maxID := pageNum * 16
+
+	rows, err := db.Query("SELECT id, word FROM words where id >= $1 AND id <= $2", minID, maxID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
