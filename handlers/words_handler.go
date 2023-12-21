@@ -8,7 +8,9 @@ import (
 	"strconv"
 )
 
+
 func GetAllWordsHandler(w http.ResponseWriter, r *http.Request) {
+
 	param := mux.Vars(r)["page"]
 	pageNum, err := strconv.Atoi(param)
 	if err != nil {
@@ -21,32 +23,40 @@ func GetAllWordsHandler(w http.ResponseWriter, r *http.Request) {
 	maxID := pageNum * 16
 
 	rows, err := db.Query("SELECT id, word FROM words where id >= $1 AND id <= $2", minID, maxID)
+
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Println("Error querying database:", err)
 		return
 	}
 	defer rows.Close()
 
-	var words []models.Word
+	// Fetch words from the result set
+	words := make([]models.Word, 0)
 	for rows.Next() {
-		var id int
-		var word string
-		err := rows.Scan(&id, &word)
+		var word models.Word
+
+		err := rows.Scan(&word.ID, &word.WordTxt)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			log.Println("Error scanning row:", err)
 			return
 		}
-
-		words = append(words, models.Word{ID: id, WordTxt: word})
+		words = append(words, word)
 	}
 
-	if err := rows.Err(); err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
+	// Create JSON response
+	response := map[string]interface{}{
+		"page":  page,
+		"words": words,
 	}
 
-	response := models.NewSuccessResponse("OK", words)
-	helper.WriteToResponseBody(w, http.StatusOK, response)
+	// Set response headers
+	w.Header().Set("Content-Type", "application/json")
+
+	res := models.NewSuccessResponse("ok", response)
+	helper.WriteToResponseBody(w, http.StatusOK, res)
+
 }
 
 func GetWordDetailHandler(w http.ResponseWriter, r *http.Request) {

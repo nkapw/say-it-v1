@@ -96,7 +96,7 @@ Response Body Error :
 
 ## Update User API
 
-Endpoint : PATCH /api/users/current
+Endpoint : PUT /users/update
 
 Headers :
 - Authorization : token
@@ -140,8 +140,7 @@ Response Body Error :
 
 ## Get User API
 
-Endpoint : GET /api/users/current
-
+Endpoint : GET /users
 Headers :
 - Authorization : token
 
@@ -178,32 +177,9 @@ Response Body Error :
 
 ```
 
-## Logout User API
-
-Endpoint : DELETE /api/users/logout
-
-Headers :
-- Authorization : token
-
-Response Body Success :
-
-```json
-{
-"data" : "OK"
-}
-```
-
-Response Body Error :
-
-```json
-{
-"errors" : "Unauthorized"
-}
-```
-
 ## Get List of Words
 
-Endpoints : GET /words
+Endpoints : GET /words?page=1
 
 ```json
 {
