@@ -10,23 +10,20 @@ import (
 
 
 func GetAllWordsHandler(w http.ResponseWriter, r *http.Request) {
-	// Parse page query parameter
-	pageStr := r.URL.Query().Get("page")
-	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
-		page = 1
+
+	param := mux.Vars(r)["page"]
+	pageNum, err := strconv.Atoi(param)
+	if err != nil {
+		response := models.NewErrorResponse("Failed to get words list", "The parameter provided is invalid", "Invalid parameter")
+		helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
+		return
 	}
 
-	// Number of items per page
-	itemsPerPage := 10
+	minID := 1 + (pageNum - 1) * 16
+	maxID := pageNum * 16
 
-	// Calculate offset based on page number
-	offset := (page - 1) * itemsPerPage
+	rows, err := db.Query("SELECT id, word FROM words where id >= $1 AND id <= $2", minID, maxID)
 
-	// Query to fetch paginated words from the database
-
-	// Execute the query
-	rows, err := db.Query("SELECT id, word FROM words ORDER BY id LIMIT $1 OFFSET $2", strconv.Itoa(itemsPerPage), strconv.Itoa(offset))
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		log.Println("Error querying database:", err)
