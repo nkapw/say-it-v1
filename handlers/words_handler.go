@@ -10,56 +10,44 @@ import (
 
 
 func GetAllWordsHandler(w http.ResponseWriter, r *http.Request) {
-	// Parse page query parameter
-	pageStr := r.URL.Query().Get("page")
-	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
-		page = 1
+	param := mux.Vars(r)["page"]
+	pageNum, err := strconv.Atoi(param)
+	if err != nil {
+		response := models.NewErrorResponse("Failed to get words list", "The parameter provided is invalid", "Invalid parameter")
+		helper.WriteToResponseBody(w, http.StatusBadRequest, &response)
+		return
 	}
 
-	// Number of items per page
-	itemsPerPage := 10
+	minID := 1 + (pageNum - 1) * 16
+	maxID := pageNum * 16
 
-	// Calculate offset based on page number
-	offset := (page - 1) * itemsPerPage
-
-	// Query to fetch paginated words from the database
-
-	// Execute the query
-	rows, err := db.Query("SELECT id, word FROM words ORDER BY id LIMIT $1 OFFSET $2", strconv.Itoa(itemsPerPage), strconv.Itoa(offset))
+	rows, err := db.Query("SELECT id, word FROM words where id >= $1 AND id <= $2", minID, maxID)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		log.Println("Error querying database:", err)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	defer rows.Close()
 
-	// Fetch words from the result set
-	words := make([]models.Word, 0)
+	var words []models.Word
 	for rows.Next() {
-		var word models.Word
-
-		err := rows.Scan(&word.ID, &word.WordTxt)
+		var id int
+		var word string
+		err := rows.Scan(&id, &word)
 		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			log.Println("Error scanning row:", err)
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		words = append(words, word)
+
+		words = append(words, models.Word{ID: id, WordTxt: word})
 	}
 
-	// Create JSON response
-	response := map[string]interface{}{
-		"page":  page,
-		"words": words,
+	if err := rows.Err(); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
 	}
 
-	// Set response headers
-	w.Header().Set("Content-Type", "application/json")
-
-	res := models.NewSuccessResponse("ok", response)
-	helper.WriteToResponseBody(w, http.StatusOK, res)
-
+	response := models.NewSuccessResponse("OK", words)
+	helper.WriteToResponseBody(w, http.StatusOK, response)
 }
 
 func GetWordDetailHandler(w http.ResponseWriter, r *http.Request) {
