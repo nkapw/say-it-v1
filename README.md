@@ -238,3 +238,27 @@ Response Body Error :
 }
 
 ```
+
+## grading
+Endpoints : 34.101.66.143:5000/transcribe
+
+Request form-data
+```json
+{
+  "voice":"voice.mp3",
+  "text":"word yang ingin di uji"
+
+}
+Response Body success
+
+```json
+{
+    "data": {
+        "accuracy": 57,
+        "compute_cer": 43,
+        "transcription": "THEN"
+    },
+    "message": "processing the audio file success",
+    "status": "ok"
+}
+```
